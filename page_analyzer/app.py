@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 from dotenv import load_dotenv
 import os
 
@@ -9,9 +9,10 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 
 @app.route('/')
-def hello():
+def index():
     secret_key = os.getenv('SECRET_KEY')
-    return f'Hello, Flask! Secret Key: {secret_key}'
+    print(11111, secret_key)
+    return render_template('index.html')
 
 
 if __name__ == '__main__':
