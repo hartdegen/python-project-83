@@ -39,7 +39,8 @@
               <tr>
                 <td>{{ url.id }}</td>
                 <td><a href="/urls/{{ url.id }}">{{ url.name }}</a></td>
-                <td>{{ url.last_check }}</td>
+                <td>{{ url.last_check or '' }}</td>
+                <td>{{ url.status_code or ''}}</td>
               </tr> 
               {% endfor %}
             </tbody>
