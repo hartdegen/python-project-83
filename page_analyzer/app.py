@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date
 from flask import (
     Flask,
     flash,
@@ -8,13 +8,14 @@ from flask import (
     request,
     url_for,
 )
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from urllib.parse import urlparse
 from psycopg2.extras import NamedTupleCursor
 import psycopg2
-import os
-import validators
 import requests
+import validators
+import os
 
 load_dotenv()
 
@@ -55,10 +56,12 @@ def handle_form():
             curs.execute("""
             INSERT INTO urls (name, created_at)
             VALUES (%s, %s)
-            """, (link, datetime.now()),)
+            """, (link, str(date.today())),)
             conn.commit()
+            curs.execute("SELECT id FROM urls WHERE name=%s", (link,))
+            id = curs.fetchone().id
             flash("Страница успешно добавлена", "success")
-            return redirect(url_for("get_urls"))
+            return redirect(url_for("get_url", id=id))
     if not is_valid:
         flash("Некорректный URL", "danger")
         return redirect(url_for("index"))
@@ -86,18 +89,26 @@ def check_url(id):
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = str(curs.fetchone().name)
         try:
-            r = requests.get(url, timeout=3)
+            r = requests.get(url, timeout=1)
             r.raise_for_status()
             status_code = r.status_code
+            soup = BeautifulSoup(r.content, 'html.parser')
+            h1 = soup.select("h1")[0].string if len(soup.select("h1")) > 0 else ''  # noqa: E501
+            title = soup.select("title")[0].string if len(soup.select("title")) > 0 else ''  # noqa: E501
+            description = soup.select('meta[name="description"]')[0]['content'] if len(soup.select('meta[name="description"]')) > 0 else ''  # noqa: E501
             curs.execute("""
-            INSERT INTO url_checks (url_id, created_at, status_code)
-            VALUES (%s, %s, %s)
-            """, (id, datetime.now(), status_code),)
+            INSERT INTO url_checks
+            (url_id, status_code, created_at, h1, title, description)
+            VALUES
+            (%s, %s, %s, %s, %s, %s)
+            """, (id, status_code, str(date.today()), h1, title, description),)
             conn.commit()
         except requests.exceptions.RequestException as e:
-            print('ERROR def check_url(id)', e)
+            print('ERROR def check_url(id)')
+            print(e)
             flash("Произошла ошибка при проверке", "danger")
             return redirect(url_for("get_url", id=id))
+    flash("Страница успешно проверена", "success")
     return redirect(url_for("get_url", id=id))
 
 
@@ -125,6 +136,7 @@ def get_urls():
         FROM u
         LEFT JOIN url_checks
             ON u.last_check = url_checks.created_at
+        GROUP BY u.id, u.name, u.last_check, url_checks.status_code
         ORDER BY u.id DESC
         """)
         urls = curs.fetchall()

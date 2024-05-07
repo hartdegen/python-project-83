@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS url_checks;
 CREATE TABLE urls (
     id smallint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
     name varchar(255) NOT NULL,
-    created_at timestamp NOT NULL
+    created_at date NOT NULL
 );
 
 CREATE TABLE url_checks (
@@ -13,7 +13,7 @@ CREATE TABLE url_checks (
     h1 varchar(255),
     title varchar(255),
     description text,
-    created_at timestamp NOT NULL
+    created_at date NOT NULL
 );
 
 INSERT INTO urls (name, created_at) VALUES ('https://www.google.ru', '2011-11-11');
