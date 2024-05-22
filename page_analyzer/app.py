@@ -43,6 +43,7 @@ def handle_form():
     if is_valid and len(url) < 256:
         o = urlparse(url)
         link = f"{o.scheme}://{o.netloc}"
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
         with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
             curs.execute("SELECT * FROM urls WHERE name=%s", (link,))
             url = curs.fetchone()
@@ -66,6 +67,7 @@ def handle_form():
 @app.route("/urls/<int:id>")
 def get_url(id):
     messages = get_flashed_messages(with_categories=True)
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = curs.fetchone()
@@ -81,6 +83,7 @@ def get_url(id):
 
 @app.post("/urls/<int:id>/checks")
 def check_url(id):
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = str(curs.fetchone().name)
@@ -111,6 +114,7 @@ def check_url(id):
 @app.route("/urls")
 def get_urls():
     messages = get_flashed_messages(with_categories=True)
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("""
         WITH u AS (
