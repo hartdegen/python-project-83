@@ -16,4 +16,5 @@ CREATE TABLE url_checks (
     created_at date NOT NULL
 );
 
-INSERT INTO urls (name, created_at) VALUES ('https://www.google.ru', '2011-11-11');
+INSERT INTO urls (name, created_at) VALUES ('https://www.google.ru', '2010-10-10');
+INSERT INTO urls (name, created_at) VALUES ('https://www.ya.ru', '2011-11-11');

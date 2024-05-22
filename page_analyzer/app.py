@@ -18,17 +18,13 @@ import validators
 import os
 
 load_dotenv()
-
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-app.secret_key = "secret_key"
+app.secret_key = os.getenv("SECRET_KEY") or "secret_key"
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 try:
-    conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor() as c:
-        c.execute("SELECT * FROM urls")
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
 except (Exception, psycopg2.Error) as error:
     print("Error while connecting to PostgreSQL")
     print(error)
@@ -89,7 +85,7 @@ def check_url(id):
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = str(curs.fetchone().name)
         try:
-            r = requests.get(url, timeout=1)
+            r = requests.get(url, timeout=3)
             r.raise_for_status()
             status_code = r.status_code
             soup = BeautifulSoup(r.content, 'html.parser')
