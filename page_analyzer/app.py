@@ -24,7 +24,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 try:
-    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+    conn = psycopg2.connect(DATABASE_URL)
 except (Exception, psycopg2.Error) as error:
     print("Error while connecting to PostgreSQL")
     print(error)
@@ -43,7 +43,7 @@ def handle_form():
     if is_valid and len(url) < 256:
         o = urlparse(url)
         link = f"{o.scheme}://{o.netloc}"
-        conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+        conn = psycopg2.connect(DATABASE_URL)
         with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
             curs.execute("SELECT * FROM urls WHERE name=%s", (link,))
             url = curs.fetchone()
@@ -67,7 +67,7 @@ def handle_form():
 @app.route("/urls/<int:id>")
 def get_url(id):
     messages = get_flashed_messages(with_categories=True)
-    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = curs.fetchone()
@@ -83,12 +83,12 @@ def get_url(id):
 
 @app.post("/urls/<int:id>/checks")
 def check_url(id):
-    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = str(curs.fetchone().name)
         try:
-            r = requests.get(url, timeout=3)
+            r = requests.get(url)
             r.raise_for_status()
             status_code = r.status_code
             soup = BeautifulSoup(r.content, 'html.parser')
@@ -114,7 +114,7 @@ def check_url(id):
 @app.route("/urls")
 def get_urls():
     messages = get_flashed_messages(with_categories=True)
-    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+    conn = psycopg2.connect(DATABASE_URL)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("""
         SELECT
