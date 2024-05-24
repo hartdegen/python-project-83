@@ -24,7 +24,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 try:
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
 except (Exception, psycopg2.Error) as error:
     print("Error while connecting to PostgreSQL")
     print(error)
@@ -36,38 +36,10 @@ def index():
     return render_template("index.html", messages=messages)
 
 
-@app.post("/")
-def handle_form():
-    url = request.form.get('url')
-    is_valid = validators.url(url)
-    if is_valid and len(url) < 256:
-        o = urlparse(url)
-        link = f"{o.scheme}://{o.netloc}"
-        conn = psycopg2.connect(DATABASE_URL)
-        with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
-            curs.execute("SELECT * FROM urls WHERE name=%s", (link,))
-            url = curs.fetchone()
-            if url:
-                flash("Страница уже существует", "info")
-                return redirect(url_for("get_url", id=url.id))
-            curs.execute("""
-            INSERT INTO urls (name, created_at)
-            VALUES (%s, %s)
-            """, (link, str(date.today())),)
-            conn.commit()
-            curs.execute("SELECT id FROM urls WHERE name=%s", (link,))
-            id = curs.fetchone().id
-            flash("Страница успешно добавлена", "success")
-            return redirect(url_for("get_url", id=id))
-    if not is_valid:
-        flash("Некорректный URL", "danger")
-        return redirect(url_for("index"))
-
-
 @app.route("/urls/<int:id>")
 def get_url(id):
     messages = get_flashed_messages(with_categories=True)
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = curs.fetchone()
@@ -83,12 +55,12 @@ def get_url(id):
 
 @app.post("/urls/<int:id>/checks")
 def check_url(id):
-    conn = psycopg2.connect(DATABASE_URL)
+    conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
         url = str(curs.fetchone().name)
         try:
-            r = requests.get(url)
+            r = requests.get(url, timeout=3)
             r.raise_for_status()
             status_code = r.status_code
             soup = BeautifulSoup(r.content, 'html.parser')
@@ -111,41 +83,51 @@ def check_url(id):
     return redirect(url_for("get_url", id=id))
 
 
-@app.route("/urls")
+@app.route("/urls", methods=['GET', 'POST'])
 def get_urls():
-    messages = get_flashed_messages(with_categories=True)
-    conn = psycopg2.connect(DATABASE_URL)
-    with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
-        curs.execute("""
-        SELECT
-            urls.id,
-            urls.name,
-            MAX(url_checks.created_at) AS last_check,
-            MAX(url_checks.status_code) AS status_code
-        FROM urls
-        LEFT JOIN url_checks
-            ON urls.id = url_checks.url_id
-        GROUP BY urls.id
-        ORDER BY urls.id DESC
-        """)
-        # curs.execute("""
-        # SELECT
-        #     urls.id,
-        #     urls.name,
-        #     MAX(url_checks.created_at) AS last_check,
-        #     url_checks.status_code
-        # FROM urls
-        # LEFT JOIN url_checks ON urls.id = url_checks.url_id
-        # WHERE url_checks.created_at = (
-        #     SELECT MAX(created_at)
-        #     FROM url_checks
-        #     WHERE url_checks.url_id = urls.id
-        # )
-        # GROUP BY urls.id, urls.name, url_checks.status_code
-        # ORDER BY urls.id DESC;
-        # """)
-        urls = curs.fetchall()
-    return render_template("urls.html", urls=urls, messages=messages)
+    if request.method == "GET":
+        messages = get_flashed_messages(with_categories=True)
+        conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+        with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
+            curs.execute("""
+            SELECT
+                urls.id,
+                urls.name,
+                MAX(url_checks.created_at) AS last_check,
+                MAX(url_checks.status_code) AS status_code
+            FROM urls
+            LEFT JOIN url_checks
+                ON urls.id = url_checks.url_id
+            GROUP BY urls.id
+            ORDER BY urls.id DESC
+            """)
+            urls = curs.fetchall()
+        return render_template("urls.html", urls=urls, messages=messages)
+    if request.method == "POST":
+        url = request.form.get('url')
+        is_valid = validators.url(url)
+        if is_valid and len(url) < 256:
+            o = urlparse(url)
+            link = f"{o.scheme}://{o.netloc}"
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
+            with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
+                curs.execute("SELECT * FROM urls WHERE name=%s", (link,))
+                url = curs.fetchone()
+                if url:
+                    flash("Страница уже существует", "info")
+                    return redirect(url_for("get_url", id=url.id))
+                curs.execute("""
+                INSERT INTO urls (name, created_at)
+                VALUES (%s, %s)
+                """, (link, str(date.today())),)
+                conn.commit()
+                curs.execute("SELECT id FROM urls WHERE name=%s", (link,))
+                id = curs.fetchone().id
+                flash("Страница успешно добавлена", "success")
+                return redirect(url_for("get_url", id=id))
+        if not is_valid:
+            flash("Некорректный URL", "danger")
+            return redirect(url_for("index"))
 
 
 if __name__ == "__main__":
