@@ -127,7 +127,7 @@ def get_urls():
                 return redirect(url_for("get_url", id=id))
         if not is_valid:
             flash("Некорректный URL", "danger")
-            return redirect(url_for("index"))
+            return redirect(url_for("index"), 422)
 
 
 if __name__ == "__main__":
