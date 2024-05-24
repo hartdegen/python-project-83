@@ -117,28 +117,33 @@ def get_urls():
     conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("""
-        WITH u AS (
-            SELECT
-                urls.id,
-                urls.name,
-                MAX(url_checks.created_at) AS last_check
-            FROM urls
-            LEFT JOIN url_checks
-                ON urls.id = url_checks.url_id
-            GROUP BY urls.id
-        )
-
         SELECT
-            u.id,
-            u.name,
-            u.last_check,
-            url_checks.status_code
-        FROM u
+            urls.id,
+            urls.name,
+            MAX(url_checks.created_at) AS last_check,
+            MAX(url_checks.status_code) AS status_code
+        FROM urls
         LEFT JOIN url_checks
-            ON u.last_check = url_checks.created_at
-        GROUP BY u.id, u.name, u.last_check, url_checks.status_code
-        ORDER BY u.id DESC
+            ON urls.id = url_checks.url_id
+        GROUP BY urls.id
+        ORDER BY urls.id DESC
         """)
+        # curs.execute("""
+        # SELECT
+        #     urls.id,
+        #     urls.name,
+        #     MAX(url_checks.created_at) AS last_check,
+        #     url_checks.status_code
+        # FROM urls
+        # LEFT JOIN url_checks ON urls.id = url_checks.url_id
+        # WHERE url_checks.created_at = (
+        #     SELECT MAX(created_at)
+        #     FROM url_checks
+        #     WHERE url_checks.url_id = urls.id
+        # )
+        # GROUP BY urls.id, urls.name, url_checks.status_code
+        # ORDER BY urls.id DESC;
+        # """)
         urls = curs.fetchall()
     return render_template("urls.html", urls=urls, messages=messages)
 
