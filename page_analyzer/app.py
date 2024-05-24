@@ -2,7 +2,6 @@ from datetime import date
 from flask import (
     Flask,
     flash,
-    get_flashed_messages,
     redirect,
     render_template,
     request,
@@ -32,13 +31,11 @@ except (Exception, psycopg2.Error) as error:
 
 @app.route("/")
 def index():
-    messages = get_flashed_messages(with_categories=True)
-    return render_template("index.html", messages=messages)
+    return render_template("index.html")
 
 
 @app.route("/urls/<int:id>")
 def get_url(id):
-    messages = get_flashed_messages(with_categories=True)
     conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
     with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
         curs.execute("SELECT * FROM urls WHERE id=%s", (id,))
@@ -48,9 +45,7 @@ def get_url(id):
         url_checks.reverse()
     if url is None:
         return render_template("404.html")
-    return render_template(
-        "url.html", url=url, url_checks=url_checks, messages=messages
-    )
+    return render_template("url.html", url=url, url_checks=url_checks)
 
 
 @app.post("/urls/<int:id>/checks")
@@ -86,7 +81,6 @@ def check_url(id):
 @app.route("/urls", methods=['GET', 'POST'])
 def get_urls():
     if request.method == "GET":
-        messages = get_flashed_messages(with_categories=True)
         conn = psycopg2.connect(DATABASE_URL, connect_timeout=3)
         with conn.cursor(cursor_factory=NamedTupleCursor) as curs:
             curs.execute("""
@@ -102,7 +96,7 @@ def get_urls():
             ORDER BY urls.id DESC
             """)
             urls = curs.fetchall()
-        return render_template("urls.html", urls=urls, messages=messages)
+        return render_template("urls.html", urls=urls)
     if request.method == "POST":
         url = request.form.get('url')
         is_valid = validators.url(url)
@@ -127,7 +121,7 @@ def get_urls():
                 return redirect(url_for("get_url", id=id))
         if not is_valid:
             flash("Некорректный URL", "danger")
-            return redirect(url_for("index"), 422)
+            return render_template('index.html'), 422
 
 
 if __name__ == "__main__":
